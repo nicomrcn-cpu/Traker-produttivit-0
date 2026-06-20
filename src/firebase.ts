@@ -6,7 +6,7 @@ import {
   persistentMultipleTabManager 
 } from 'firebase/firestore';
 
-const firebaseConfig = > const firebaseConfig = {
+> const firebaseConfig = {
 >   apiKey: "AIzaSyDeHw-f7RCpJD67biQz2V3xD",
 >   authDomain: "traker-produttivita.firebaseapp.com",
 >   projectId: "traker-produttivita",
