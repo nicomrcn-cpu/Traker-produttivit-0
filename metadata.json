@@ -1,0 +1,6 @@
+{
+  "name": "Tracker Avanzato di Abitudini",
+  "description": "Una progressive web app offline-first per tracciare macro-categorie e sotto-attività con logica parent-child, obiettivi settimanali pesati, valutazioni da 1 a 10 e grafici radar dinamici.",
+  "requestFramePermissions": ["notifications"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

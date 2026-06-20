@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "MacroCategory": {
+      "title": "MacroCategory",
+      "description": "A macro-category representing a life area (e.g. Diet, Sleep, Study)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "color": { "type": "string" },
+        "icon": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name", "color", "icon", "userId", "createdAt"]
+    },
+    "SubActivity": {
+      "title": "SubActivity",
+      "description": "A sub-activity belonging to a macrocategory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "name": { "type": "string" },
+        "weeklyTarget": { "type": "number" },
+        "weight": { "type": "number" },
+        "dailyValuation": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["categoryId", "name", "weeklyTarget", "weight", "dailyValuation", "userId", "createdAt"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "A progress log entry for a specific sub-activity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "subActivityId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "date": { "type": "string" },
+        "score": { "type": "number" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["subActivityId", "categoryId", "date", "score", "userId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "categories/{categoryId}": {
+      "schema": "MacroCategory",
+      "description": "Macro-categories for users"
+    },
+    "subActivities/{subActivityId}": {
+      "schema": "SubActivity",
+      "description": "Sub-activities configured per category"
+    },
+    "logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Daily logging of sub-activity scores"
+    }
+  }
+}
