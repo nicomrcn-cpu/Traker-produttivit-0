@@ -7,13 +7,13 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAV1P-XMTQPxw2wTNnUL0Xp-ZFMpuj4OSE",
-  authDomain: "corded-bay-pfjbn.firebaseapp.com",
-  projectId: "corded-bay-pfjbn",
-  storageBucket: "corded-bay-pfjbn.firebasestorage.app",
-  messagingSenderId: "848486577078",
-  appId: "1:848486577078:web:db6fb040906f4484c90717",
-  measurementId: ""
+  apiKey: "AIzaSyDeHw-f7RCpJD67biQz2V3xD48r8QqVhds",
+  authDomain: "traker-produttivita.firebaseapp.com",
+  projectId: "traker-produttivita",
+  storageBucket: "traker-produttivita.firebasestorage.app",
+  messagingSenderId: "455133424401",
+  appId: "1:455133424401:web:0fd1a42cd75f066de03ab0",
+  measurementId: "G-SW221KG3VG"
 };
 
 // Initialize Firebase App
