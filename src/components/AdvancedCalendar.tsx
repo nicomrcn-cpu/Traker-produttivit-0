@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { MacroCategory, SubActivity, ActivityLog, PlannedActivity } from '../types';
 import { CategoryIcon } from './CategoryIcon';
+import { PlanningModal } from './PlanningModal';
 
 interface AdvancedCalendarProps {
   categories: MacroCategory[];
@@ -713,227 +714,18 @@ export function AdvancedCalendar({
         </div>
       )}
 
-      {/* --- SCHEDULING PLAN MODAL FOR FUTURE DAYS --- */}
-      <AnimatePresence>
-        {selectedFutureDate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs font-sans">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full border border-slate-150 dark:border-slate-800 shadow-xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    <div>
-                      <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
-                        Pianifica Attività
-                      </h3>
-                      <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest mt-0.5 block">
-                        {new Date(selectedFutureDate).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedFutureDate(null);
-                      setModalSearchQuery('');
-                      setModalCategoryFilter('all');
-                    }}
-                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Filters in modal */}
-              <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 flex items-center bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-750 px-3 py-1.5 rounded-xl gap-2 focus-within:border-blue-500 transition-colors">
-                  <Filter className="w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Cerca attività settimanale..."
-                    value={modalSearchQuery}
-                    onChange={(e) => setModalSearchQuery(e.target.value)}
-                    className="border-none text-xs text-slate-700 dark:text-white bg-transparent focus:outline-none w-full font-medium"
-                  />
-                  {modalSearchQuery && (
-                    <button onClick={() => setModalSearchQuery('')} className="text-slate-400 hover:text-slate-650">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-
-                <select
-                  value={modalCategoryFilter}
-                  onChange={(e) => setModalCategoryFilter(e.target.value)}
-                  className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-750 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="all">Tutte le Macroaree</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Incomplete activities container */}
-              <div className="p-6 max-h-[350px] overflow-y-auto space-y-4">
-                
-                {/* Visual Status card of scheduled things already on this actual date */}
-                {(() => {
-                  const dayPlans = plannedActivities.filter(p => p.date === selectedFutureDate);
-                  if (dayPlans.length === 0) return null;
-
-                  return (
-                    <div className="bg-blue-50/35 dark:bg-blue-950/20 border border-blue-100/60 dark:border-blue-900/30 p-4 rounded-2xl">
-                      <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> Già Fissate in questa data ({dayPlans.length}):
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {dayPlans.map((plan) => {
-                          const sub = subActivities.find(s => s.id === plan.subActivityId);
-                          const cat = sub ? categories.find(c => c.id === sub.categoryId) : null;
-                          if (!sub) return null;
-
-                          return (
-                            <div 
-                              key={plan.id}
-                              className="flex items-center justify-between p-2.5 rounded-xl border bg-white dark:bg-slate-850"
-                              style={{ borderColor: cat ? `${cat.color}25` : '#e2e8f0' }}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                {cat && (
-                                  <div className="p-1 px-1.5 rounded-md text-[10px]" style={{ backgroundColor: `${cat.color}15`, color: cat.color }}>
-                                    <CategoryIcon name={cat.icon} className="w-3.5 h-3.5" />
-                                  </div>
-                                )}
-                                <span className="text-xs font-black text-slate-700 dark:text-slate-200 truncate">{sub.name}</span>
-                              </div>
-                              <button
-                                onClick={() => handleUnpinPlannedActivity(plan.id)}
-                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors ml-2"
-                                title="Rimuovi pianificazione"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-450 mb-3 flex items-center gap-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
-                    Abitudini Settimanali Rimanenti:
-                  </h4>
-
-                  {incompleteWeeklyActivities.length > 0 ? (
-                    <div className="space-y-2.5">
-                      {incompleteWeeklyActivities.map((item) => {
-                        const isPinnedOnSelectedDate = plannedActivities.some(
-                          p => p.subActivityId === item.sub.id && p.date === selectedFutureDate
-                        );
-
-                        return (
-                          <div
-                            key={item.sub.id}
-                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 border rounded-2xl bg-slate-50/20 dark:bg-slate-950/5 transition-all ${
-                              isPinnedOnSelectedDate 
-                                ? 'border-blue-200 dark:border-blue-900 bg-blue-50/5' 
-                                : 'border-slate-100 dark:border-slate-800'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3 min-w-0 mb-3 sm:mb-0">
-                              {item.category && (
-                                <div 
-                                  className="p-2.5 rounded-xl border"
-                                  style={{ 
-                                    backgroundColor: `${item.category.color}11`,
-                                    borderColor: `${item.category.color}22`,
-                                    color: item.category.color 
-                                  }}
-                                >
-                                  <CategoryIcon name={item.category.icon} className="w-4 h-4" />
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <h5 className="text-xs font-black text-slate-800 dark:text-white truncate">
-                                  {item.sub.name}
-                                </h5>
-                                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-1 text-[10px] font-semibold text-slate-450">
-                                  <span className="flex items-center gap-0.5">
-                                    Target: <strong className="text-slate-600 dark:text-slate-350">{item.sub.weeklyTarget || 3} v/sett</strong>
-                                  </span>
-                                  <span className="text-slate-300 dark:text-slate-700 font-normal">•</span>
-                                  <span className="flex items-center gap-0.5">
-                                    Svolte: <strong className={item.isCompletedForWeek ? "text-emerald-500" : "text-slate-600 dark:text-slate-350"}>{item.completionsThisWeek}</strong>
-                                  </span>
-                                  <span className="text-slate-300 dark:text-slate-700 font-normal">•</span>
-                                  <span className="flex items-center gap-0.5 text-blue-500">
-                                    Fissate: <strong>{item.plannedCountThisWeek}</strong>
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-end gap-2 shrink-0">
-                              {isPinnedOnSelectedDate ? (
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-105 bg-blue-50 dark:bg-blue-955/30 border border-blue-220 border-blue-400 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-black uppercase tracking-wider">
-                                  <Check className="w-3.5 h-3.5" /> Fissata Qui
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => handlePinPlannedActivity(item.sub.id)}
-                                  className={`flex items-center gap-1.5 px-3.5 py-2 hover:bg-blue-700 text-white font-black uppercase tracking-wider rounded-xl text-[10px] shadow-xs active:scale-95 transition-all ${
-                                    item.yetToSchedule > 0 
-                                      ? 'bg-blue-600 shadow-blue-500/10' 
-                                      : 'bg-slate-400 dark:bg-slate-700 pointer-events-none opacity-50'
-                                  }`}
-                                >
-                                  <Plus className="w-3.5 h-3.5" />
-                                  {item.yetToSchedule > 0 ? "Fissa Attività" : "In linea col target"}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 border border-dashed border-slate-150 dark:border-slate-800/80 rounded-2xl flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-2">
-                      <Inbox className="w-8 h-8 opacity-40 text-blue-500" />
-                      <span className="text-xs font-bold leading-normal">
-                        Nessuna abitudine rimasta da pianificare per questa settimana!
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-                <button
-                  onClick={() => {
-                    setSelectedFutureDate(null);
-                    setModalSearchQuery('');
-                    setModalCategoryFilter('all');
-                  }}
-                  className="px-4 py-2 bg-slate-200 hover:bg-slate-250 dark:bg-slate-800 dark:hover:bg-slate-755 text-slate-700 dark:text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all"
-                >
-                  Chiudi
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* --- SCHEDULING PLAN MODAL FOR FUTURE DAYS (PlanningModal) --- */}
+      <PlanningModal
+        isOpen={!!selectedFutureDate}
+        date={selectedFutureDate || ''}
+        categories={categories}
+        subActivities={subActivities}
+        logs={logs}
+        plannedActivities={plannedActivities}
+        onAddPlan={onAddPlan}
+        onRemovePlan={onRemovePlan}
+        onClose={() => setSelectedFutureDate(null)}
+      />
     </section>
   );
 }
