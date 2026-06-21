@@ -34,7 +34,7 @@ interface StatsRadarProps {
   logs: ActivityLog[];
 }
 
-export type TimeRange = 'week' | 'month' | 'year';
+export type TimeRange = 'day' | 'week' | 'month' | 'year';
 
 export function StatsRadar({ categories, subActivities, logs }: StatsRadarProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
@@ -67,7 +67,9 @@ export function StatsRadar({ categories, subActivities, logs }: StatsRadarProps)
     
     // Calcola i limiti temporali
     let startDate = new Date();
-    if (timeRange === 'week') {
+    if (timeRange === 'day') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    } else if (timeRange === 'week') {
       // Inizio della settimana corrente (Lunedì)
       const day = now.getDay();
       const diff = now.getDate() - day + (day === 0 ? -6 : 1);
@@ -85,8 +87,27 @@ export function StatsRadar({ categories, subActivities, logs }: StatsRadarProps)
     const startTimestamp = startDate.getTime();
 
     return categories.map(cat => {
-      // Filtra solo le sotto-attività RICORRENTI di questa categoria
-      const catSubs = subActivities.filter(sub => sub.categoryId === cat.id && (!sub.type || sub.type === 'recurring'));
+      // Filtra le sotto-attività corrette per il periodo
+      const catSubs = subActivities.filter(sub => {
+        if (sub.categoryId !== cat.id) return false;
+        if (timeRange === 'day') {
+          // Ricorrenti o Temporanee valide oggi
+          if (!sub.type || sub.type === 'recurring') return true;
+          const today = new Date();
+          if (sub.validityType === 'week') {
+            const weekCode = getYearWeekStr(today);
+            return sub.validityPeriod === weekCode;
+          }
+          if (sub.validityType === 'month') {
+            const monthCode = getYearMonthStr(today);
+            return sub.validityPeriod === monthCode;
+          }
+          return false;
+        } else {
+          // Solo ricorrenti per gli altri range (comportamento standard)
+          return !sub.type || sub.type === 'recurring';
+        }
+      });
       
       if (catSubs.length === 0) {
         return {
@@ -96,6 +117,41 @@ export function StatsRadar({ categories, subActivities, logs }: StatsRadarProps)
           rawScore: 0,
           color: cat.color,
           subCount: 0
+        };
+      }
+
+      const todayStr = now.toISOString().split('T')[0];
+
+      if (timeRange === 'day') {
+        const subWeights = catSubs.map(sub => {
+          const subLogs = logs.filter(log => log.subActivityId === sub.id && log.date === todayStr);
+          return {
+            sub,
+            logsInPeriod: subLogs,
+            weight: sub.weight || 0
+          };
+        });
+
+        const totalWeight = subWeights.reduce((sum, item) => sum + item.weight, 0) || 1;
+
+        let weightedSuccessSum = 0;
+        let totalWeightedScores = 0;
+
+        subWeights.forEach(({ sub, logsInPeriod, weight }) => {
+          const hasLog = logsInPeriod.length > 0;
+          const score = hasLog ? (logsInPeriod[0].score || 0) : 0;
+          
+          weightedSuccessSum += (weight / totalWeight) * (hasLog ? 100 : 0);
+          totalWeightedScores += (weight / totalWeight) * score;
+        });
+
+        return {
+          id: cat.id,
+          subject: cat.name,
+          value: Math.round(weightedSuccessSum),
+          rawScore: Math.round(totalWeightedScores * 10) / 10,
+          color: cat.color,
+          subCount: catSubs.length
         };
       }
 
@@ -263,6 +319,7 @@ export function StatsRadar({ categories, subActivities, logs }: StatsRadarProps)
 
   // Formatta l'etichetta del selettore temporale
   const timeLabel = {
+    day: 'Oggi (Ultime 24 Ore)',
     week: 'Questa Settimana',
     month: 'Ultimi 28 Giorni (Mese)',
     year: 'Anno Corrente'
@@ -284,10 +341,20 @@ export function StatsRadar({ categories, subActivities, logs }: StatsRadarProps)
         </div>
 
         {/* Selettore Temporale */}
-        <div className="flex items-center bg-slate-50 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-150 dark:border-slate-700/60 w-fit">
+        <div className="flex items-center bg-slate-50 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-150 dark:border-slate-700/60 w-fit flex-wrap gap-1">
+          <button
+            onClick={() => setTimeRange('day')}
+            className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+              timeRange === 'day'
+                ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm'
+                : 'text-slate-450 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+            }`}
+          >
+            Giornaliero
+          </button>
           <button
             onClick={() => setTimeRange('week')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
               timeRange === 'week'
                 ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm'
                 : 'text-slate-450 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
@@ -297,7 +364,7 @@ export function StatsRadar({ categories, subActivities, logs }: StatsRadarProps)
           </button>
           <button
             onClick={() => setTimeRange('month')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
               timeRange === 'month'
                 ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm'
                 : 'text-slate-450 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
@@ -307,7 +374,7 @@ export function StatsRadar({ categories, subActivities, logs }: StatsRadarProps)
           </button>
           <button
             onClick={() => setTimeRange('year')}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
               timeRange === 'year'
                 ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm'
                 : 'text-slate-450 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'

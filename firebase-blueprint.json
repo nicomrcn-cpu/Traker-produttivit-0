@@ -44,6 +44,19 @@
         "timestamp": { "type": "number" }
       },
       "required": ["subActivityId", "categoryId", "date", "score", "userId", "timestamp"]
+    },
+    "PlannedActivity": {
+      "title": "PlannedActivity",
+      "description": "A planning/scheduling record mapping a sub-activity to a future date",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "subActivityId": { "type": "string" },
+        "date": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["subActivityId", "date", "userId", "createdAt"]
     }
   },
   "firestore": {
@@ -58,6 +71,10 @@
     "logs/{logId}": {
       "schema": "ActivityLog",
       "description": "Daily logging of sub-activity scores"
+    },
+    "plannedActivities/{plannedActivityId}": {
+      "schema": "PlannedActivity",
+      "description": "Planned sub-activities on specific dates"
     }
   }
 }

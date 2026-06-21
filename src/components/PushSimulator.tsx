@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SubActivity, ActivityLog } from '../types';
-import { Bell, BellOff, Play, Info, CheckCircle2 } from 'lucide-react';
+import { Bell, BellOff, Play, Info, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 interface PushSimulatorProps {
   subActivities: SubActivity[];
@@ -11,6 +11,136 @@ export function PushSimulator({ subActivities, logs }: PushSimulatorProps) {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSwRegistered, setIsSwRegistered] = useState(false);
   const [testResult, setTestResult] = useState<{ type: 'success' | 'info' | 'warning', text: string } | null>(null);
+  
+  const notifiedPredictive = useRef<Record<string, boolean>>({});
+
+  const simulatePredictiveCheck = (isAuto = false) => {
+    if (!isAuto) {
+      setTestResult(null);
+    }
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    // Giorno di oggi (1 = Lunedì ... 7 = Domenica)
+    let currentDayOfWeek = now.getDay();
+    if (currentDayOfWeek === 0) currentDayOfWeek = 7;
+
+    // Giorni totali nel mese corrente
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayDate = now.getDate();
+
+    const riskSubNames: string[] = [];
+    const riskSubs: { sub: SubActivity; period: string; missing: number }[] = [];
+
+    subActivities.forEach(sub => {
+      let P = 0;
+      let T = sub.weeklyTarget || 3;
+      let C = 0;
+      let periodLabel = 'settimana';
+
+      const hasLoggedToday = logs.some(log => log.subActivityId === sub.id && log.date === todayStr);
+
+      if (sub.type === 'temporary' && sub.validityType === 'month') {
+        periodLabel = 'mese';
+        T = T * 4; // Frequenza mensile target
+
+        let startOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
+        if (sub.validityPeriod) {
+          const [vYear, vMonth] = sub.validityPeriod.split('-');
+          startOfMonth = new Date(Number(vYear), Number(vMonth) - 1, 1, 0, 0, 0, 0);
+        }
+        const startOfMonthTimestamp = startOfMonth.getTime();
+        const endOfMonthTimestamp = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 1, 0, 0, 0, 0).getTime();
+
+        const subLogs = logs.filter(l => {
+          const logTime = new Date(l.date).getTime();
+          return l.subActivityId === sub.id && logTime >= startOfMonthTimestamp && logTime < endOfMonthTimestamp;
+        });
+
+        P = subLogs.length;
+        C = totalDaysInMonth - todayDate + (hasLoggedToday ? 0 : 1);
+      } else {
+        // Settimanale (ricorrente o temporaneo su settimana)
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
+        const startOfWeekTimestamp = startOfWeek.getTime();
+
+        const subLogs = logs.filter(l => new Date(l.date).getTime() >= startOfWeekTimestamp && l.subActivityId === sub.id);
+        P = subLogs.length;
+        C = 7 - currentDayOfWeek + (hasLoggedToday ? 0 : 1);
+      }
+
+      // Formula: (P + C) / T < 0.70
+      if ((P + C) / T < 0.70) {
+        const target70 = Math.ceil(0.70 * T);
+        const missingFor70 = Math.max(0, target70 - P);
+        
+        riskSubNames.push(`"${sub.name}"`);
+        riskSubs.push({ sub, period: periodLabel, missing: missingFor70 });
+      }
+    });
+
+    if (riskSubs.length > 0) {
+      // Se è un controllo automatico, filtriamo solo le sotto-attività non ancora notificate in questa sessione
+      const unnotifiedRisks = isAuto 
+        ? riskSubs.filter(r => !notifiedPredictive.current[r.sub.id])
+        : riskSubs;
+
+      if (unnotifiedRisks.length > 0) {
+        // Segnala le sottoattività non ancora notificate
+        const listNames = unnotifiedRisks.map(r => `"${r.sub.name}"`).join(', ');
+        const missingSum = unnotifiedRisks.reduce((sum, r) => sum + r.missing, 0);
+        
+        const title = 'Rendi speciale la giornata! 🌱';
+        const body = `Attenzione! Per raggiungere il tuo obiettivo del 70% su ${listNames}, dobbiamo accelerare. Mancano ancora ${missingSum} esecuzioni complessive. Ce la fai a inserirne un paio oggi? ✨`;
+
+        if (isAuto) {
+          // Segna come notificate in questa sessione per evitare spam continuo
+          unnotifiedRisks.forEach(r => {
+            notifiedPredictive.current[r.sub.id] = true;
+          });
+        }
+
+        sendLocalNotification(title, body);
+
+        if (!isAuto) {
+          setTestResult({
+            type: 'warning',
+            text: `Rilevato Rischio Matematico (Logica 70%): \n\n⚠️ ${body}`
+          });
+        }
+      } else {
+        // Già tutte notificate per l'auto check, non mostrare alcun pop up aggiuntivo
+        if (!isAuto) {
+          setTestResult({
+            type: 'info',
+            text: `Controllo Predittivo completato: Rilevato rischio matematico sotto l'obiettivo del 70% per: ${riskSubNames.join(', ')}. Notifica già inviata in precedenza.`
+          });
+        }
+      }
+    } else {
+      if (!isAuto) {
+        setTestResult({
+          type: 'success',
+          text: `Controllo Predittivo (Logica 70%): Complimenti viva della tua determinazione! Tutti i tuoi obiettivi correnti sono matematicamente idonei per raggiungere o superare il 70% della performance stabilita! ✨`
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Esegui controllo predittivo automatico dopo 2 secondi all'avvio o modifica dei dati
+    const timer = setTimeout(() => {
+      simulatePredictiveCheck(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [subActivities, logs]);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -216,7 +346,7 @@ export function PushSimulator({ subActivities, logs }: PushSimulatorProps) {
 
       {permissionsNotice(permission)}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 font-sans">
         {/* Trigger 1 */}
         <button
           onClick={simulateWeekendCheck}
@@ -250,6 +380,25 @@ export function PushSimulator({ subActivities, logs }: PushSimulatorProps) {
           </div>
           <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-normal">
             Verifica la presenza di sotto-attività "Tracciate Giornalmente" prive di valutazione odierna e ti notifica un invito rassicurante a dedicarti un istante.
+          </p>
+        </button>
+
+        {/* Trigger 3 */}
+        <button
+          onClick={() => simulatePredictiveCheck(false)}
+          className="flex flex-col items-start p-4 hover:bg-gray-50 hover:dark:bg-gray-800 border border-gray-100 dark:border-gray-850 rounded-xl transition-all text-left group animate-fade-in"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-lg group-hover:scale-105 transition-transform">
+              <Play className="w-4 h-4 fill-current" />
+            </div>
+            <span className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1">
+              Simula Alert 70%
+              <span className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-350 text-[9px] font-black rounded uppercase scale-90">Alg</span>
+            </span>
+          </div>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-normal">
+            Applica l'algoritmo predittivo (P + C)/T &lt; 0.70 per verificare se è impossibile raggiungere il 70% degli obiettivi ed invia incentivi mirati ad accelerare.
           </p>
         </button>
       </div>

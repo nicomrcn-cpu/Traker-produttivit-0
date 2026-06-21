@@ -170,6 +170,47 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
                 l => l.subActivityId === sub.id && new Date(l.date).getTime() >= startOfWeekTimestamp
               );
 
+              // Calcolo E (Esecuzioni Correnti) e T (Target dell'Intervallo Attivo)
+              let currentPeriodE = 0;
+              let currentPeriodT = sub.weeklyTarget || 3;
+              let periodLabel = 'settimanale';
+
+              const nowForPeriod = new Date();
+              if (sub.type === 'temporary' && sub.validityType === 'month') {
+                periodLabel = 'mensile';
+                currentPeriodT = currentPeriodT * 4;
+                
+                let startOfMonth = new Date(nowForPeriod.getFullYear(), nowForPeriod.getMonth(), 1, 0, 0, 0, 0);
+                if (sub.validityPeriod) {
+                  const [year, month] = sub.validityPeriod.split('-');
+                  startOfMonth = new Date(Number(year), Number(month) - 1, 1, 0, 0, 0, 0);
+                }
+                const startOfMonthTimestamp = startOfMonth.getTime();
+                const endOfMonthTimestamp = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 1, 0, 0, 0, 0).getTime();
+
+                const logsThisMonth = logs.filter(l => {
+                  const logTime = new Date(l.date).getTime();
+                  return l.subActivityId === sub.id && logTime >= startOfMonthTimestamp && logTime < endOfMonthTimestamp;
+                });
+                currentPeriodE = logsThisMonth.length;
+              } else {
+                const logsThisWeekForE = logs.filter(l => {
+                  const logTime = new Date(l.date).getTime();
+                  return l.subActivityId === sub.id && logTime >= startOfWeekTimestamp;
+                });
+                currentPeriodE = logsThisWeekForE.length;
+              }
+
+              const percentageVal = Math.round((currentPeriodE / (currentPeriodT || 1)) * 100);
+              const ratio = Math.min(percentageVal, 100);
+
+              let progressColor = 'bg-red-500';
+              if (percentageVal >= 80) {
+                progressColor = 'bg-emerald-500';
+              } else if (percentageVal >= 55) {
+                progressColor = 'bg-amber-500';
+              }
+
               return (
                 <div 
                   key={sub.id} 
@@ -201,6 +242,24 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
                     >
                       <Edit2 className="w-3 h-3" />
                     </button>
+                  </div>
+
+                  {/* Performance Indicator Block */}
+                  <div className="space-y-1 bg-slate-50/50 dark:bg-slate-950/10 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-450 dark:text-slate-450">
+                      <span className="flex items-center gap-1">
+                        Avanzamento {periodLabel}: <strong className="text-slate-700 dark:text-slate-300 font-black">{currentPeriodE}/{currentPeriodT} gg</strong>
+                      </span>
+                      <span className={`font-black ${percentageVal >= 80 ? 'text-emerald-500' : percentageVal >= 55 ? 'text-amber-500' : 'text-red-500'}`}>
+                        {percentageVal}%
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200/50 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
+                        style={{ width: `${ratio}%` }}
+                      ></div>
+                    </div>
                   </div>
 
                   {/* Pulsantiera Voto 1-10 */}

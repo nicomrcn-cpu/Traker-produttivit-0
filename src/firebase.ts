@@ -1,21 +1,31 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from 'firebase/firestore';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDeHw-f7RCpJD67biQz2V3xD48r8QqVhds",
-  authDomain: "traker-produttivita.firebaseapp.com",
-  projectId: "traker-produttivita",
-  storageBucket: "traker-produttivita.firebasestorage.app",
-  messagingSenderId: "455133424401",
-  appId: "1:455133424401:web:0fd1a42cd75f066de03ab0",
-  measurementId: "G-SW221KG3VG"
+  apiKey: "AIzaSyAV1P-XMTQPxw2wTNnUL0Xp-ZFMpuj4OSE",
+  authDomain: "corded-bay-pfjbn.firebaseapp.com",
+  projectId: "corded-bay-pfjbn",
+  storageBucket: "corded-bay-pfjbn.firebasestorage.app",
+  messagingSenderId: "848486577078",
+  appId: "1:848486577078:web:db6fb040906f4484c90717",
+  measurementId: ""
 };
 
-// Initialize Firebase
+// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// Initialize Firestore with Offline Persistence and Custom Database ID
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+}, "ai-studio-2a82cb62-8fb5-4738-92ef-ce8ddd0fec6e");
+
+const auth = getAuth(app);
+
+export { app, db, auth };

@@ -35,6 +35,14 @@ export interface ActivityLog {
   weeklyTargetSnap?: number;
 }
 
+export interface PlannedActivity {
+  id: string;
+  subActivityId: string;
+  date: string;         // YYYY-MM-DD
+  userId: string;
+  createdAt: number;
+}
+
 export const DEFAULT_CATEGORIES = [
   { name: 'Dieta', color: '#22c55e', icon: 'Apple' },             // Verde
   { name: 'Sonno', color: '#a855f7', icon: 'Moon' },              // Viola

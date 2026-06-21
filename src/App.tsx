@@ -24,7 +24,9 @@ import { CategoryCard } from './components/CategoryCard';
 import { CategoryModal } from './components/CategoryModal';
 import { SubActivityModal } from './components/SubActivityModal';
 import { PushSimulator } from './components/PushSimulator';
-import { MacroCategory, SubActivity, ActivityLog, DEFAULT_CATEGORIES } from './types';
+import { AdvancedCalendar } from './components/AdvancedCalendar';
+import { motion, AnimatePresence } from 'motion/react';
+import { MacroCategory, SubActivity, ActivityLog, PlannedActivity, DEFAULT_CATEGORIES } from './types';
 import { 
   Sun, 
   Moon, 
@@ -52,6 +54,7 @@ export default function App() {
   const [categories, setCategories] = useState<MacroCategory[]>([]);
   const [subActivities, setSubActivities] = useState<SubActivity[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [plannedActivities, setPlannedActivities] = useState<PlannedActivity[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   // Selected date for day logs
@@ -66,6 +69,7 @@ export default function App() {
   const [subActivityModalOpen, setSubActivityModalOpen] = useState(false);
   const [editingSubActivity, setEditingSubActivity] = useState<SubActivity | null>(null);
   const [selectedCategoryIdForNewSub, setSelectedCategoryIdForNewSub] = useState<string>('');
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
 
   // Flag to prevent duplicate population
   const populationTriggered = useRef(false);
@@ -90,6 +94,7 @@ export default function App() {
         setCategories([]);
         setSubActivities([]);
         setLogs([]);
+        setPlannedActivities([]);
         setLoadingData(true);
         populationTriggered.current = false;
       }
@@ -156,10 +161,24 @@ export default function App() {
       setLogs(logList);
     }, (error) => console.error("Errore snapshot log:", error));
 
+    // Planned activities query
+    const qPlans = query(
+      collection(db, 'plannedActivities'),
+      where('userId', '==', user.uid)
+    );
+    const unsubscribePlans = onSnapshot(qPlans, (snapshot) => {
+      const planList: PlannedActivity[] = [];
+      snapshot.forEach(doc => {
+        planList.push({ id: doc.id, ...doc.data() } as PlannedActivity);
+      });
+      setPlannedActivities(planList);
+    }, (error) => console.error("Errore snapshot pianificazioni:", error));
+
     return () => {
       unsubscribeCat();
       unsubscribeSub();
       unsubscribeLogs();
+      unsubscribePlans();
     };
   }, [user]);
 
@@ -344,6 +363,30 @@ export default function App() {
     }
   };
 
+  // CRUD pianificazione attività
+  const handleAddPlan = async (subActivityId: string, date: string) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'plannedActivities'), {
+        subActivityId,
+        date,
+        userId: user.uid,
+        createdAt: Date.now()
+      });
+    } catch (err) {
+      console.error("Errore salvataggio pianificazione:", err);
+    }
+  };
+
+  const handleRemovePlan = async (planId: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'plannedActivities', planId));
+    } catch (err) {
+      console.error("Errore cancellazione pianificazione:", err);
+    }
+  };
+
   // Logout
   const handleSignOut = () => signOut(auth);
 
@@ -424,12 +467,19 @@ export default function App() {
             <ChevronLeft className="w-4 h-4" />
           </button>
 
-          <div className="flex items-center gap-2.5">
-            <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <button
+            onClick={() => setIsCalendarModalOpen(true)}
+            className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl border border-dashed border-blue-200 hover:border-blue-400 dark:border-slate-800 dark:hover:border-slate-705 text-blue-600 dark:text-blue-400 group transition-all"
+            title="Apri Calendario Avanzato e Pianificazione"
+          >
+            <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
             <span className="text-xs font-extrabold text-slate-800 dark:text-white uppercase tracking-widest mt-0.5">
               {getFriendlyDateStr()}
             </span>
-          </div>
+            <span className="ml-1.5 text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2 py-0.5 rounded-lg tracking-wider">
+              Pianifica
+            </span>
+          </button>
 
           <button
             onClick={() => handleDateChange(1)}
@@ -538,6 +588,31 @@ export default function App() {
           onDelete={editingSubActivity ? handleDeleteSubActivity : undefined}
         />
       )}
+
+      {/* OVERLAY CALENDARIO AVANZATO A SCHERMO INTERO */}
+      <AnimatePresence>
+        {isCalendarModalOpen && (
+          <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm overflow-y-auto p-4 md:p-8 flex items-start justify-center">
+            <motion.div
+              initial={{ opacity: 0, y: 30, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 30, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-6xl mt-4 md:mt-10 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl relative"
+            >
+              <AdvancedCalendar
+                categories={categories}
+                subActivities={subActivities}
+                logs={logs}
+                plannedActivities={plannedActivities}
+                onAddPlan={handleAddPlan}
+                onRemovePlan={handleRemovePlan}
+                onClose={() => setIsCalendarModalOpen(false)}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
